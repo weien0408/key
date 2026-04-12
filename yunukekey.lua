@@ -1,4 +1,6 @@
+-- [[ Yunuke Hub Key System ]] --
 
+-- Prevent multiple GUI instances
 if game:GetService("CoreGui"):FindFirstChild("YunukeKeySystem") then
     game:GetService("CoreGui").YunukeKeySystem:Destroy()
 end
@@ -10,11 +12,12 @@ local KeyInput = Instance.new("TextBox")
 local SubmitBtn = Instance.new("TextButton")
 local UICorner = Instance.new("UICorner")
 
-
+-- Setup GUI
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "YunukeKeySystem"
 ScreenGui.ResetOnSpawn = false
 
+-- Main Frame
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -27,16 +30,16 @@ MainFrame.Draggable = true
 local MainCorner = Instance.new("UICorner", MainFrame)
 MainCorner.CornerRadius = UDim.new(0, 10)
 
-
+-- Title (English)
 Title.Parent = MainFrame
 Title.BackgroundTransparency = 1
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "Yunuke Hub"
+Title.Text = "Yunuke Hub Verification"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 
-
+-- Input Box (English)
 KeyInput.Parent = MainFrame
 KeyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 KeyInput.Position = UDim2.new(0.1, 0, 0.35, 0)
@@ -49,7 +52,7 @@ KeyInput.TextSize = 14
 
 local InputCorner = Instance.new("UICorner", KeyInput)
 
-
+-- Submit Button (English)
 SubmitBtn.Parent = MainFrame
 SubmitBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 SubmitBtn.Position = UDim2.new(0.1, 0, 0.65, 5)
@@ -61,25 +64,26 @@ SubmitBtn.TextSize = 14
 
 local BtnCorner = Instance.new("UICorner", SubmitBtn)
 
+--- Key Validation Logic ---
 
+-- 這裡放你提供的 4 組 Key
 local Keys = {
     ["KSIW-EI12-QSID1-DSQK"] = true,
     ["SDQII-1EID-XQWSOKD-SMC"] = true,
     ["131-DQSKD-1239DS"] = true,
     ["312JDS-QWKDJLSQD-123E19KDS"] = true
-    ["SISHJ1-1283JK-12193KSKASQ"] = true
 }
 
 SubmitBtn.MouseButton1Click:Connect(function()
     local input = KeyInput.Text
     
     if Keys[input] then
-        SubmitBtn.Text = "Success!"
+        SubmitBtn.Text = "Success! Loading..."
         SubmitBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         
         task.wait(1)
         
-    
+        -- Load your GitHub script
         local success, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/weien0408/yunuke/refs/heads/main/Yunuke%20hub.lua"))()
         end)
