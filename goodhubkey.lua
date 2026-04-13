@@ -1,5 +1,5 @@
 
-local CorrectKey = "SUD1UDjd-Hiod129-74311du7UH1-.Y7D8y" -- Your key from the image
+local CorrectKey = "SUD1UDjd-Hiod129-74311du7UH1-.Y7D8y"
 local ScriptURL = "https://raw.githubusercontent.com/weien0408/goodhub/refs/heads/main/goodhub.lua"
 
 
