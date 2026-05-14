@@ -14,15 +14,11 @@ local equipped, favorites = {}, {}
 local constructingWeapon, viewingProfile = nil, nil
 local lastUsedWeapon = nil
 
--- 將原本的通知改為 GOODHUB [此處僅更換通知系統]
-local GOODHUB = _G.GoodHub or {
-    Notify = function(self, title, text, duration)
-        -- 如果你的 GOODHUB 有特定的 Notify 函式，請確保其名稱正確
-        print("[" .. tostring(title) .. "]: " .. tostring(text))
-    end
-}
-
-GOODHUB:Notify("UnlockAll iniciado", "Todas os cosméticos (exceto Finishers) foram desbloqueados!", 5)
+-- NOTIFICAÇÃO
+local NotificationLib = loadstring(game:HttpGet(""))()
+if NotificationLib then
+    NotificationLib:Notify("goodhub", "goodhub", 5)
+end
 
 local function cloneCosmetic(name, cosmeticType, options)
     local base = CosmeticLibrary.Cosmetics[name]
@@ -103,6 +99,7 @@ local originalOwnsCosmetic = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmetic(self, inventory, name, weapon) end
     local cosmetic = CosmeticLibrary.Cosmetics[name]
+    -- EXCLURE LES FINISHERS
     if cosmetic and cosmetic.Type == "Skin" then return true end
     return originalOwnsCosmetic(self, inventory, name, weapon)
 end
@@ -114,10 +111,12 @@ DataController.Get = function(self, key)
         local proxy = {}
         if data then for k, v in pairs(data) do 
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and cosmetic.Type == "Skin" then proxy[k] = v end
         end end
         return setmetatable(proxy, {__index = function(t, k)
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and cosmetic.Type == "Skin" then return true end
             return nil
         end})
@@ -183,6 +182,7 @@ if hookmetamethod then
             end
             if self == equipRemote then
                 local weaponName, cosmeticType, cosmeticName, options = args[1], args[2], args[3], args[4] or {}
+                -- EXCLURE LES FINISHERS
                 if cosmeticType ~= "Skin" then return oldNamecall(self, ...) end
                 if cosmeticName and cosmeticName ~= "None" and cosmeticName ~= "" then
                     local inventory = DataController:Get("CosmeticInventory")
@@ -279,6 +279,7 @@ local originalOwnsCosmeticCharm = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmeticCharm(self, inventory, name, weapon) end
     local cosmetic = CosmeticLibrary.Cosmetics[name]
+    -- EXCLURE LES FINISHERS
     if cosmetic and (cosmetic.Type == "Charm" or name:lower():find("charm")) then return true end
     return originalOwnsCosmeticCharm(self, inventory, name, weapon)
 end
@@ -290,10 +291,12 @@ DataController.Get = function(self, key)
         local proxy = {}
         if data then for k, v in pairs(data) do 
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Charm" or k:lower():find("charm")) then proxy[k] = v end
         end end
         return setmetatable(proxy, {__index = function(t, k)
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Charm" or k:lower():find("charm")) then return true end
             return nil
         end})
@@ -431,6 +434,7 @@ local originalOwnsCosmeticDance = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmeticDance(self, inventory, name, weapon) end
     local cosmetic = CosmeticLibrary.Cosmetics[name]
+    -- EXCLURE LES FINISHERS
     if cosmetic and (cosmetic.Type == "Dance" or cosmetic.Type == "Emote" or name:lower():find("dance") or name:lower():find("emote")) then return true end
     return originalOwnsCosmeticDance(self, inventory, name, weapon)
 end
@@ -442,10 +446,12 @@ DataController.Get = function(self, key)
         local proxy = {}
         if data then for k, v in pairs(data) do 
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Dance" or cosmetic.Type == "Emote" or k:lower():find("dance") or k:lower():find("emote")) then proxy[k] = v end
         end end
         return setmetatable(proxy, {__index = function(t, k)
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Dance" or cosmetic.Type == "Emote" or k:lower():find("dance") or k:lower():find("emote")) then return true end
             return nil
         end})
@@ -548,6 +554,7 @@ local originalOwnsCosmeticWrap = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmeticWrap(self, inventory, name, weapon) end
     local cosmetic = CosmeticLibrary.Cosmetics[name]
+    -- EXCLURE LES FINISHERS
     if cosmetic and (cosmetic.Type == "Wrap" or cosmetic.Type == "Wrapping" or name:lower():find("wrap")) then return true end
     return originalOwnsCosmeticWrap(self, inventory, name, weapon)
 end
@@ -559,10 +566,12 @@ DataController.Get = function(self, key)
         local proxy = {}
         if data then for k, v in pairs(data) do 
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Wrap" or cosmetic.Type == "Wrapping" or k:lower():find("wrap")) then proxy[k] = v end
         end end
         return setmetatable(proxy, {__index = function(t, k)
             local cosmetic = CosmeticLibrary.Cosmetics[k]
+            -- EXCLURE LES FINISHERS
             if cosmetic and (cosmetic.Type == "Wrap" or cosmetic.Type == "Wrapping" or k:lower():find("wrap")) then return true end
             return nil
         end})
@@ -713,9 +722,9 @@ end)
 
 loadConfig()
 
--- 腳本結束通知改為 GOODHUB
-if GOODHUB and GOODHUB.Notify then
-    GOODHUB:Notify("UnlockAll finalizado", "Script carregado com sucesso!", 3)
+-- RETORNO FINAL
+if NotificationLib then
+    NotificationLib:Notify("goodhub", "goodhub", 3)
 end
 
 return "UnlockAll script carregado com sucesso - Todos os cosméticos exceto Finishers estão desbloqueados"
