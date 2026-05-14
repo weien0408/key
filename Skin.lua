@@ -1,4 +1,4 @@
-
+-- PARTIE 1/2 - TOUT SAUF FINISHERS
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -14,8 +14,10 @@ local equipped, favorites = {}, {}
 local constructingWeapon, viewingProfile = nil, nil
 local lastUsedWeapon = nil
 
+-- 將原本的通知改為 GOODHUB [此處僅更換通知系統]
 local GOODHUB = _G.GoodHub or {
-    Notify = function(self, title, text, duration 
+    Notify = function(self, title, text, duration)
+        -- 如果你的 GOODHUB 有特定的 Notify 函式，請確保其名稱正確
         print("[" .. tostring(title) .. "]: " .. tostring(text))
     end
 }
@@ -424,6 +426,7 @@ if viewModelModule then
     end
 end
 
+-- ==================== VERSION DANCES ====================
 local originalOwnsCosmeticDance = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmeticDance(self, inventory, name, weapon) end
@@ -539,6 +542,8 @@ pcall(function()
         end
     end
 end)
+
+-- ==================== VERSION WRAPS ====================
 local originalOwnsCosmeticWrap = CosmeticLibrary.OwnsCosmetic
 CosmeticLibrary.OwnsCosmetic = function(self, inventory, name, weapon)
     if name:find("MISSING_") then return originalOwnsCosmeticWrap(self, inventory, name, weapon) end
@@ -693,6 +698,8 @@ if viewModelModule then
         return result
     end
 end
+
+-- ==================== FINAL ====================
 pcall(function()
     local ViewProfile = require(player.PlayerScripts.Modules.Pages.ViewProfile)
     if ViewProfile and ViewProfile.Fetch then
@@ -706,6 +713,7 @@ end)
 
 loadConfig()
 
+-- 腳本結束通知改為 GOODHUB
 if GOODHUB and GOODHUB.Notify then
     GOODHUB:Notify("UnlockAll finalizado", "Script carregado com sucesso!", 3)
 end
