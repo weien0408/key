@@ -15,7 +15,7 @@ local constructingWeapon, viewingProfile = nil, nil
 local lastUsedWeapon = nil
 
 -- NOTIFICAÇÃO
-local NotificationLib = loadstring(game:HttpGet(""))()
+local NotificationLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/weien0408/key/refs/heads/main/Goodhubl"))()
 if NotificationLib then
     NotificationLib:Notify("goodhub", "goodhub", 5)
 end
