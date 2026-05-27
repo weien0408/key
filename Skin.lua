@@ -104,7 +104,7 @@ local lastAutoFireTime, lastChatSpamTime = 0, 0
 local OriginalColors, MouseHolding = {}, false
 local voidDirection = 1
 
--- [[ 1.4 SILENT AIM SYSTEM ]]
+-- [[ 1.4 SILENT AIM SYSTEM - HIGH PERFORMANCE OPTIMIZED ]]
 local X = {}
 X.bone = "Head"
 X.range = math.huge
@@ -117,45 +117,86 @@ X.original = X.mod.Raycast
 X.cam = workspace.CurrentCamera
 X.me = X.services.plr.LocalPlayer
 
+-- 引入快取機制，避免每發子彈都遍歷整個地圖
+local lastPoolUpdate = 0
+local cachedPool = {}
+
+local function updateTargetPool()
+    local now = os.clock()
+    if now - lastPoolUpdate < 0.25 and #cachedPool > 0 then 
+        return cachedPool 
+    end
+    lastPoolUpdate = now
+    
+    local pool = {}
+    -- 1. 高效率優先獲取玩家 Character
+    local allPlayers = X.services.plr:GetPlayers()
+    for i = 1, #allPlayers do
+        local p = allPlayers[i]
+        if p ~= X.me and p.Character then
+            pool[#pool+1] = p.Character
+        end
+    end
+    -- 2. 每隔 0.25 秒才低頻遍歷一次 workspace 的其他潛在目標（如 HurtEffect 或 NPC）
+    local wsChildren = workspace:GetChildren()
+    for i = 1, #wsChildren do
+        local v = wsChildren[i]
+        if v.Name == "HurtEffect" then
+            local cChildren = v:GetChildren()
+            for j = 1, #cChildren do
+                local c = cChildren[j]
+                if c.ClassName ~= "Highlight" then pool[#pool+1] = c end
+            end
+        elseif v:FindFirstChildOfClass("Humanoid") and not X.services.plr:GetPlayerFromCharacter(v) then
+            pool[#pool+1] = v
+        end
+    end
+    cachedPool = pool
+    return pool
+end
+
 X.mod.Raycast = function(...)
     local args = {...}
     if not Settings.SilentAimEnabled or args[4] ~= 999 then return X.original(...) end
     X.bone = Settings.AimbotPart
+    
     local cx = X.cam.ViewportSize.X / 2
     local cy = X.cam.ViewportSize.Y / 2
     local winner, record = nil, X.range
-    local pool = {}
-    for _, v in workspace:GetChildren() do
-        if v:FindFirstChildOfClass("Humanoid") then pool[#pool+1] = v end
-        if v.Name == "HurtEffect" then
-            for _, c in v:GetChildren() do
-                if c.ClassName ~= "Highlight" then pool[#pool+1] = c end
-            end
-        end
-    end
-    for _, v in pool do
-        if v == X.me.Character then continue end
-        if not v:FindFirstChild("HumanoidRootPart") then continue end
-        if not v:FindFirstChild(X.bone) then continue end
+    local pool = updateTargetPool() -- 使用高效率快取池
+    
+    for i = 1, #pool do
+        local v = pool[i]
+        if v == X.me.Character or not v.Parent then continue end
+        
+        local root = v:FindFirstChild("HumanoidRootPart") or (v:IsA("BasePart") and v)
+        local targetPart = v:FindFirstChild(X.bone) or root
+        if not targetPart then continue end
         
         if Settings.AimbotTeamCheck then
             local pl = X.services.plr:GetPlayerFromCharacter(v)
-            if pl and (pl:GetAttribute("TeamID") == X.me:GetAttribute("TeamID") or pl.Team == X.me.Team) then continue end
+            if pl and (pl:GetAttribute("TeamID") == X.me:GetAttribute("TeamID") or pl.Team == X.me.Team) then 
+                continue 
+            end
         end
         
-        local p, vis = X.cam:WorldToViewportPoint(v[X.bone].Position)
+        local p, vis = X.cam:WorldToViewportPoint(targetPart.Position)
         if not vis then continue end
-        local d = ((Vector2.new(cx, cy)) - Vector2.new(p.X, p.Y)).Magnitude
+        local d = (Vector2.new(cx, cy) - Vector2.new(p.X, p.Y)).Magnitude
         
         if Settings.FOVEnabled and d > Settings.FOVRadius then continue end
         
-        if d < record then winner, record = v, d end
+        if d < record then 
+            winner, record = targetPart, d 
+        end
     end
-    if winner and winner:FindFirstChild(X.bone) then
-        args[3] = winner[X.bone].Position
+    
+    if winner then
+        args[3] = winner.Position
     end
     return X.original(table.unpack(args))
 end
+
 
 
 -- [[ 1.4.5 ORIGINAL DESYNC WALLBANG SYSTEM ]]
