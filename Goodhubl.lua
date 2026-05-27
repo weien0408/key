@@ -95,7 +95,7 @@ local lastAutoFireTime, lastChatSpamTime = 0, 0
 local OriginalColors, MouseHolding = {}, false
 local voidDirection = 1
 
--- [[ SILENT AIM SYSTEM - ⚡效能重優化版本 ]]
+-- [[ SILENT AIM SYSTEM ]]
 local X = {bone = "Head", range = math.huge, services = {rep = game:GetService("ReplicatedStorage"), plr = game:GetService("Players")}}
 X.mod = require(X.services.rep.Modules.Utility)
 X.original = X.mod.Raycast
@@ -103,7 +103,6 @@ X.cam = workspace.CurrentCamera
 X.me = X.services.plr.LocalPlayer
 
 X.mod.Raycast = function(...)
-    -- ⭐ 效能優化：未開啟 Silent Aim 時，直接原廠速度返回
     if not Settings.SilentAimEnabled then 
         return X.original(...) 
     end
@@ -137,7 +136,7 @@ X.mod.Raycast = function(...)
     return X.original(table.unpack(args))
 end
 
--- [[ WALLBANG SYSTEM - ⚡效能優化 ]]
+-- [[ WALLBANG SYSTEM ]]
 local __a1b2c3 = setmetatable({}, {__index = function(_, g) local s, m = pcall(function() return game:GetService(g) end) return m and cloneref(m) or nil end})
 local __p6q7r8 = getgenv()
 if __p6q7r8.__s9t0u1 then __p6q7r8.__s9t0u1:Shutdown() end
@@ -315,7 +314,6 @@ local function CreateESP(player)
     local function Hide() HealthOutline.Visible = false HealthBar.Visible = false NameT.Visible = false DistT.Visible = false HPText.Visible = false end
 
     RunService.RenderStepped:Connect(function()
-        -- ⭐ 效能優化：如果關閉 ESP，直接返回，不執行任何計算
         if not Settings.ESPEnabled then 
             Hide() 
             if not player.Parent then 
@@ -528,7 +526,7 @@ end)
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then MouseHolding = false end if i.KeyCode.Name == Settings.AimbotKey or i.UserInputType.Name == Settings.AimbotKey then Settings.AimbotHolding = false end end)
 UserInputService.JumpRequest:Connect(function() if Settings.InfiniteJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end)
 
--- [[ 補齊：畫布渲染初始化（Crosshair & FOV） ]]
+-- [[ 畫布渲染初始化 ]]
 local crosshairLines = {} 
 for i=1,4 do 
     crosshairLines[i] = Drawing.new("Line") 
@@ -537,7 +535,7 @@ end
 local FOVCircle = Drawing.new("Circle") 
 FOVCircle.Thickness, FOVCircle.NumSides = 1.5, 60
 
--- [[ 補齊：近戰與輔助鎖人目標搜尋 ]]
+-- [[ 目標搜尋核心邏輯 ]]
 local function GetClosestTarget()
     local target, dist = nil, Settings.FOVEnabled and Settings.FOVRadius or math.huge
     for _, p in ipairs(Players:GetPlayers()) do
@@ -557,32 +555,35 @@ local function GetClosestTarget()
     return target
 end
 
--- [[ 補齊：Camera Aimbot 相機追蹤主迴圈 ]]
-RunService:BindToRenderStep("SOLIX_LOCK", 201, function()
+local ffaTime = 0
+local lastScanTime = 0
+
+-- [[ 整合主運算核心迴圈 (結合 Camera Aimbot 鎖定 & 各項渲染功能) ]]
+RunService.RenderStepped:Connect(function(dt)
+    -- 1. Camera Aimbot 鎖人相機更新
     if Settings.AimbotEnabled and Settings.AimbotHolding then
         local target = GetClosestTarget()
         if target then
             local targetCF = CFrame.new(Camera.CFrame.Position, target.Position)
             local smoothVal = Settings.AimbotSmoothness / 100
-            if smoothVal < 1 then Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothVal) else Camera.CFrame = targetCF end
+            if smoothVal < 1 then 
+                Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothVal) 
+            else 
+                Camera.CFrame = targetCF 
+            end
             if Settings.AutoFireEnabled and tick() - lastAutoFireTime >= Settings.AutoFireDelay then 
                 if mouse1click then mouse1click() end 
                 lastAutoFireTime = tick() 
             end
         end
     end
-end)
 
-local ffaTime = 0
-local lastScanTime = 0
-
--- [[ 補齊：每幀更新（包含 Crosshair、FOV、垃圾郵件、傳送與 FFA 自動收集） ]]
-RunService.RenderStepped:Connect(function(dt)
+    -- 2. 地圖光影時間設定
     Lighting.ClockTime = Settings.NightModeEnabled and 0 or 14
     local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     local chCol = Settings.CrosshairRainbow and GetRainbowColor() or Color3.fromRGB(Settings.CrosshairColorR, Settings.CrosshairColorG, Settings.CrosshairColorB)
 
-    -- 十字準心渲染 (效能優化：沒開時連算都不算)
+    -- 十字準心渲染
     if Settings.CrosshairEnabled then
         local theta = math.rad(tick() * Settings.CrosshairSpinSpeed)
         for i=1,4 do
@@ -594,7 +595,7 @@ RunService.RenderStepped:Connect(function(dt)
         for i=1,4 do crosshairLines[i].Visible = false end 
     end
     
-    -- FOV 圈圈渲染
+    -- FOV 圓圈渲染
     if Settings.FOVEnabled then 
         FOVCircle.Position, FOVCircle.Radius, FOVCircle.Visible = center, Settings.FOVRadius, true 
         FOVCircle.Color = Settings.FOVRainbow and GetRainbowColor() or Color3.fromRGB(Settings.FOVColorR, Settings.FOVColorG, Settings.FOVColorB) 
@@ -602,7 +603,7 @@ RunService.RenderStepped:Connect(function(dt)
         FOVCircle.Visible = false 
     end
 
-    -- 聊天室轟炸
+    -- 聊天室發話垃圾郵件
     if Settings.ChatSpamEnabled and tick() - lastChatSpamTime >= Settings.ChatSpamDelay then
         lastChatSpamTime = tick()
         pcall(function()
@@ -615,7 +616,7 @@ RunService.RenderStepped:Connect(function(dt)
     local char = LocalPlayer.Character local root = GetRoot(char) local hum = char and char:FindFirstChild("Humanoid")
     if not root or not hum then return end
 
-    -- [[ FFA 補給包核心收集邏輯 - 限制每 0.15 秒低頻掃描（防卡死核心） ]]
+    -- FFA 補給包核心收集邏輯 (低頻掃描限制，防止掉幀)
     ffaTime = ffaTime + dt * 8
     local bounce = math.sin(ffaTime) * 4
 
@@ -688,4 +689,4 @@ RunService.Stepped:Connect(function()
     end 
 end)
 
-print("💎 GOOD HUB v6: COMPLETE REMASTERED & ULTIMATE PERFORMANCE FIXED!")
+print("💎 GOOD HUB v6: AIMBOT CRITICAL FIXED & ULTIMATE STABLE!")
