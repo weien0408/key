@@ -590,7 +590,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12) local MainStr
 
 local Header = Instance.new("Frame", MainFrame) Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundColor3, Header.BackgroundTransparency = Color3.new(1,1,1), 0.9 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
 local Title = Instance.new("TextLabel", Header) Title.Size, Title.Position, Title.BackgroundTransparency = UDim2.new(1, -10, 1, 0), UDim2.new(0, 15, 0, 0), 1
-Title.Text, Title.TextColor3, Title.Font, Title.TextSize, Title.TextXAlignment = "GOOD HUB ANIMATED v6", Color3.new(1,1,1), Enum.Font.GothamBold, 14, Enum.TextXAlignment.Left
+Title.Text, Title.TextColor3, Title.Font, Title.TextSize, Title.TextXAlignment = "Goodhub v2（Beta)", Color3.new(1,1,1), Enum.Font.GothamBold, 14, Enum.TextXAlignment.Left
 
 local TWEEN_UI = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 OpenBtn.MouseButton1Click:Connect(function() 
@@ -913,4 +913,4 @@ RunService.Stepped:Connect(function()
     end 
 end)
 
-print("💎 GOOD HUB v6: FFA BOOSTERS TAB INTEGRATED SUCCESSFULLY!")
+print(" Goodhub v2 (Beta)SUCCESSFULLY!")
