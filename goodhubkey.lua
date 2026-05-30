@@ -23,7 +23,7 @@ end
 
 -- 配置設定檔
 local Settings = {
-    AutoSaveLoadEnabled = true,
+    AutoSaveLoadEnabled = true, -- 換伺服器自動保持開關
     
     AimbotEnabled = false, 
     SilentAimEnabled = false, 
@@ -31,14 +31,14 @@ local Settings = {
     AimbotKey = "B",
     AimbotPart = "Head", 
     AimbotSmoothness = 50, 
-    AimbotTeamCheck = true,
+    AimbotTeamCheck = false, 
     AimbotWallCheck = false,
     AimbotHolding = false, 
     AutoFireEnabled = false, 
     AutoFireDelay = 0.05,
-    unlockskin = false,
+    unlockskin = false, -- 新增解鎖皮膚開關狀態紀錄
     
-    ESPEnabled = false, ESPNames = false, ESPDistances = false, ESPHealth = false, ESPTeamCheck = true,
+    ESPEnabled = false, ESPNames = false, ESPDistances = false, ESPHealth = false, ESPTeamCheck = false,
     ESPColorR = 255, ESPColorG = 255, ESPColorB = 255, ESPRainbow = false,
     
     CrosshairEnabled = false, CrosshairSize = 12, CrosshairGap = 8, CrosshairSpinSpeed = 150,
@@ -59,12 +59,18 @@ local Settings = {
     NoCooldownEnabled = false,
     DeviceMode = "PC",
     
+    -- 新增 FFA 功能配置項目
     FFA_AutoHealth = true,
     FFA_AutoAmmo = true,
     FFA_AutoRespawn = true,
     
-    -- Rage Bot 只傳送，不開火
-    RageBotEnabled = false
+    -- ===== RAGE BOT 配置 =====
+    RageBotEnabled = false,      -- 總開關
+    RageVoidHeight = 2000,       -- 虛空高度
+    RageAttackDistance = 30,     -- 攻擊距離（隨機偏移範圍）
+    RageVoidTime = 0.5,          -- 停留在虛空的時間（秒）
+    RageAttackTime = 0.3,        -- 攻擊後等待時間（秒）
+    RageDebugMode = false,       -- 調試模式（可選）
 }
 
 local function SaveSettings()
@@ -106,23 +112,6 @@ local lastAutoFireTime, lastChatSpamTime = 0, 0
 local OriginalColors, MouseHolding = {}, false
 local voidDirection = 1
 
-local lastRageTeleport = 0
-local RAGE_TELEPORT_INTERVAL = 3
-
--- [[ 強化版隊伍檢查 ]]
-local function IsTeammate(player)
-    if player == LocalPlayer then return true end
-    local localTeamID = LocalPlayer:GetAttribute("TeamID")
-    local playerTeamID = player:GetAttribute("TeamID")
-    if localTeamID and playerTeamID and localTeamID == playerTeamID then
-        return true
-    end
-    if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
-        return true
-    end
-    return false
-end
-
 -- [[ 1.4 SILENT AIM SYSTEM ]]
 local X = {}
 X.bone = "Head"
@@ -159,7 +148,7 @@ X.mod.Raycast = function(...)
         
         if Settings.AimbotTeamCheck then
             local pl = X.services.plr:GetPlayerFromCharacter(v)
-            if pl and IsTeammate(pl) then continue end
+            if pl and (pl:GetAttribute("TeamID") == X.me:GetAttribute("TeamID") or pl.Team == X.me.Team) then continue end
         end
         
         local p, vis = X.cam:WorldToViewportPoint(v[X.bone].Position)
@@ -175,6 +164,7 @@ X.mod.Raycast = function(...)
     end
     return X.original(table.unpack(args))
 end
+
 
 -- [[ 1.4.5 ORIGINAL DESYNC WALLBANG SYSTEM ]]
 local __a1b2c3 = setmetatable({}, {
@@ -305,7 +295,7 @@ do
 
         for _, player in next, __v2w3x4:GetPlayers() do
             if player == __k7l8m9 then continue end
-            if Settings.AimbotTeamCheck and IsTeammate(player) then continue end
+            if player:GetAttribute("TeamID") == __k7l8m9:GetAttribute("TeamID") then continue end
            
             local char = player.Character
             if not char then continue end
@@ -372,6 +362,7 @@ do
     __i1j2k3:__init()
 end
 
+
 -- [[ 1.5 FIXED NO-LAG COOLDOWN & WEAPON MOD SYSTEM ]]
 local function ApplyWeaponMods()
     if not Settings.NoCooldownEnabled then return end
@@ -407,7 +398,14 @@ local function ApplyDeviceSimulation(mode)
     end
 end
 
--- [[ 通用可見度檢查 ]]
+-- [[ 1.8 LIGHTWEIGHT TEAM CHECK SYSTEM ]]
+local function IsTeammate(player)
+    if player:GetAttribute("TeamID") == LocalPlayer:GetAttribute("TeamID") then return true end
+    if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then return true end
+    return false
+end
+
+-- [[ 2. CORE INTELLIGENCE ALGORITHMS ]]
 local function IsPlayerVisible(targetPart)
     if not Settings.AimbotWallCheck then return true end
     local char = LocalPlayer.Character if not char then return false end
@@ -416,72 +414,6 @@ local function IsPlayerVisible(targetPart)
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
     local result = workspace:Raycast(Camera.CFrame.Position, targetPart.Position - Camera.CFrame.Position, rayParams)
     return result == nil
-end
-
--- [[ Rage Bot 專用：取得最近敵人的 HumanoidRootPart (考慮隊伍檢查) ]]
-local function GetNearestEnemyRoot()
-    local myChar = LocalPlayer.Character
-    if not myChar then return nil end
-    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return nil end
-    
-    local closestRoot = nil
-    local closestDist = math.huge
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        if IsTeammate(player) then continue end
-        
-        local char = player.Character
-        if not char then continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildWhichIsA("Humanoid")
-        if not (root and hum and hum.Health > 0) then continue end
-        
-        local dist = (myRoot.Position - root.Position).Magnitude
-        if dist < closestDist then
-            closestDist = dist
-            closestRoot = root
-        end
-    end
-    return closestRoot
-end
-
--- 傳送到最近敵人身邊（安全位置，避免掉出地圖外）
-local function RageTeleportToNearest()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local myRoot = char:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return end
-    
-    local targetRoot = GetNearestEnemyRoot()
-    if not targetRoot then return end
-    
-    -- 計算傳送位置：目標位置 + 隨機小偏移（半徑 2~6 單位），避免直接重疊
-    local radius = math.random(2, 6)
-    local angle = math.rad(math.random(0, 360))
-    local offsetX = math.cos(angle) * radius
-    local offsetZ = math.sin(angle) * radius
-    local newPos = targetRoot.Position + Vector3.new(offsetX, 2, offsetZ)
-    
-    -- 安全檢測：從新位置上方 5 單位向下投射，確保地面存在且不超出邊界
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {char}
-    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    local hit = workspace:Raycast(newPos + Vector3.new(0, 5, 0), Vector3.new(0, -10, 0), rayParams)
-    if hit then
-        newPos = hit.Position + Vector3.new(0, 3, 0)  -- 站在地面上方 3 單位
-    else
-        -- 如果沒有地面，就不傳送，避免掉到虛空
-        return
-    end
-    
-    -- 額外 Y 軸限制：如果 Y 過低或過高（例如低於 0 或高於 1000），放棄傳送
-    if newPos.Y < 0 or newPos.Y > 1000 then
-        return
-    end
-    
-    myRoot.CFrame = CFrame.new(newPos)
 end
 
 -- [[ 2.5 SPIN BOT ANIMATION LOGIC ]]
@@ -549,6 +481,7 @@ LocalPlayer.CharacterAdded:Connect(function(character)
     if Settings.SpinEnabled then playAnim(character) end
     if Settings.NoCooldownEnabled then task.wait(1) ApplyWeaponMods() end
     
+    -- FFA 自動復活綁定
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
         if not Settings.FFA_AutoRespawn then return end
@@ -665,7 +598,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12) local MainStr
 
 local Header = Instance.new("Frame", MainFrame) Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundColor3, Header.BackgroundTransparency = Color3.new(1,1,1), 0.9 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
 local Title = Instance.new("TextLabel", Header) Title.Size, Title.Position, Title.BackgroundTransparency = UDim2.new(1, -10, 1, 0), UDim2.new(0, 15, 0, 0), 1
-Title.Text, Title.TextColor3, Title.Font, Title.TextSize, Title.TextXAlignment = "GOOD HUB ANIMATED v2", Color3.new(1,1,1), Enum.Font.GothamBold, 14, Enum.TextXAlignment.Left
+Title.Text, Title.TextColor3, Title.Font, Title.TextSize, Title.TextXAlignment = "GOOD HUB ANIMATED v6", Color3.new(1,1,1), Enum.Font.GothamBold, 14, Enum.TextXAlignment.Left
 
 local TWEEN_UI = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 OpenBtn.MouseButton1Click:Connect(function() 
@@ -748,23 +681,25 @@ local MovePage = CreatePage("Movement")
 local FFABoostersPage = CreatePage("FFA Boosters")
 local MiscPage = CreatePage("Misc")
 
--- Combat 頁面
 AddToggle(CombatPage, "跨服保持", "AutoSaveLoadEnabled")
+
+-- 皮膚解鎖按鈕
 AddToggle(CombatPage, "Unlock All Skin (External)", "unlockskin", function(state)
     if state then
-        pcall(function()
+        local success, err = pcall(function()
             loadstring(game:HttpGet("https://pastefy.app/dB7rK4xC/raw"))()
         end)
+        if not success then
+            warn("外部皮膚解鎖腳本載入失敗: " .. tostring(err))
+        end
     end
 end)
+
 AddToggle(CombatPage, "No Cooldown/Recoil/Spread", "NoCooldownEnabled", function(state) if state then ApplyWeaponMods() end end)
 AddToggle(CombatPage, "Wallbang (Desync Method)", "WallbangEnabled")
 AddToggle(CombatPage, "Silent Aim (Raycast)", "SilentAimEnabled")
 AddToggle(CombatPage, "Camera Aimbot", "AimbotEnabled")
--- Rage Bot：只傳送到最近的玩家，無自動射擊
-AddToggle(CombatPage, "Rage Bot (Teleport to Nearest)", "RageBotEnabled", function(state)
-    print(state and "⚡ 狂暴模式已啟用 - 每 2.5~4 秒傳送到最近敵人附近 (安全位置)" or "狂暴模式已關閉")
-end)
+
 AddCycle(CombatPage, "Target Part", {"Head", "Torso", "HumanoidRootPart"}, "AimbotPart")
 AddSlider(CombatPage, "Cam Smoothness (0~1)", 100, 1, "AimbotSmoothness")
 AddToggle(CombatPage, "Wall Check", "AimbotWallCheck")
@@ -772,34 +707,43 @@ AddToggle(CombatPage, "Team Check", "AimbotTeamCheck")
 AddToggle(CombatPage, "Auto Fire", "AutoFireEnabled")
 AddSlider(CombatPage, "Fire Delay", 10, 1, "AutoFireDelay", function(v) Settings.AutoFireDelay = v/100 end)
 
--- ESP Config 頁面
+-- ================== RAGE BOT 功能 (新增) ==================
+AddToggle(CombatPage, "Rage Bot (Void Jump Attack)", "RageBotEnabled", function(state)
+    ToggleRageBot(state)
+end)
+AddSlider(CombatPage, "Rage Void Height", 5000, 500, "RageVoidHeight")
+AddSlider(CombatPage, "Rage Attack Distance", 100, 5, "RageAttackDistance")
+AddSlider(CombatPage, "Rage Void Time (s)", 2, 0.1, "RageVoidTime", function(v) Settings.RageVoidTime = v end)
+AddSlider(CombatPage, "Rage Attack Time (s)", 2, 0.1, "RageAttackTime", function(v) Settings.RageAttackTime = v end)
+-- ========================================================
+
 AddToggle(VisualPage, "ESP Master Switch", "ESPEnabled")
 AddToggle(VisualPage, "ESP Names", "ESPNames")
 AddToggle(VisualPage, "ESP Distances", "ESPDistances")
 AddToggle(VisualPage, "ESP Health Display", "ESPHealth")
 AddToggle(VisualPage, "ESP Team Check", "ESPTeamCheck")
 
--- ESP Colors 頁面
 AddToggle(VisualColor, "Rainbow ESP", "ESPRainbow")
 AddSlider(VisualColor, "ESP Red Color", 255, 0, "ESPColorR")
 AddSlider(VisualColor, "ESP Green Color", 255, 0, "ESPColorG")
 AddSlider(VisualColor, "ESP Blue Color", 255, 0, "ESPColorB")
 
--- FOV & Aim 頁面
 AddToggle(CrosshairPage, "Crosshair Master", "CrosshairEnabled")
 AddToggle(CrosshairPage, "Crosshair Rainbow", "CrosshairRainbow")
 AddSlider(CrosshairPage, "Crosshair Size", 50, 1, "CrosshairSize")
 AddSlider(CrosshairPage, "Crosshair Gap", 30, 1, "CrosshairGap")
+
 AddToggle(CrosshairPage, "FOV Circle Master", "FOVEnabled")
 AddToggle(CrosshairPage, "FOV Rainbow", "FOVRainbow")
 AddSlider(CrosshairPage, "FOV Radius Size", 800, 10, "FOVRadius")
 
--- Movement 頁面
 AddToggle(MovePage, "Void Mode (Y 0-1000)", "VoidModeEnabled")
 AddToggle(MovePage, "Stick To Head", "StickToHeadEnabled")
 AddToggle(MovePage, "Fly", "FlyEnabled")
 AddSlider(MovePage, "Fly Speed", 1000, 10, "FlySpeed")
 AddToggle(MovePage, "Noclip", "NoclipEnabled")
+
+-- 綁定 SpinBot 動畫與速度控制
 AddToggle(MovePage, "Spin Bot (Anim)", "SpinEnabled", ToggleSpinBot)
 AddSlider(MovePage, "Spin Speed", 99999, 1, "SpinSpeed", function(v)
     if Settings.SpinEnabled and LocalPlayer.Character then
@@ -813,6 +757,7 @@ AddSlider(MovePage, "Spin Speed", 99999, 1, "SpinSpeed", function(v)
         end
     end
 end)
+
 AddToggle(MovePage, "Walk Speed", "WalkSpeedEnabled")
 AddSlider(MovePage, "Speed Value", 500, 16, "WalkSpeedValue")
 AddToggle(MovePage, "Jump Power", "JumpPowerEnabled")
@@ -820,28 +765,29 @@ AddSlider(MovePage, "Jump Value", 500, 50, "JumpPowerValue")
 AddToggle(MovePage, "Infinite Jump", "InfiniteJumpEnabled")
 AddToggle(MovePage, "Upside Down", "UpsideDownEnabled")
 
--- FFA Boosters 頁面
 AddToggle(FFABoostersPage, "Auto Health", "FFA_AutoHealth")
 AddToggle(FFABoostersPage, "Auto Ammo", "FFA_AutoAmmo")
 AddToggle(FFABoostersPage, "Auto Respawn", "FFA_AutoRespawn")
 
--- Misc 頁面
 AddCycle(MiscPage, "Device Mode", {"PC", "Touch", "Gamepad"}, "DeviceMode", function(sm) ApplyDeviceSimulation(sm) end)
 AddToggle(MiscPage, "Dark Map", "DarkMapEnabled", function(v) ApplyDarkMap(v) end)
 AddToggle(MiscPage, "Night Mode", "NightModeEnabled")
 AddToggle(MiscPage, "Chat Spam", "ChatSpamEnabled")
 AddSlider(MiscPage, "Spam Delay (s)", 10, 1, "ChatSpamDelay")
+
 local ChatInput = Instance.new("TextBox", MiscPage) ChatInput.Size = UDim2.new(1, -5, 0, 32) ChatInput.BackgroundColor3, ChatInput.BackgroundTransparency = Color3.fromRGB(40, 40, 50), 0.5
 ChatInput.PlaceholderText, ChatInput.Text, ChatInput.TextColor3, ChatInput.Font, ChatInput.TextSize = "Spam Content...", Settings.ChatSpamText, Color3.new(1,1,1), Enum.Font.Gotham, 12
 Instance.new("UICorner", ChatInput).CornerRadius = UDim.new(0, 6) ChatInput.FocusLost:Connect(function(e) if e then Settings.ChatSpamText = ChatInput.Text SaveSettings() end end)
+
 local BindBtn = Instance.new("TextButton", MiscPage) BindBtn.Size, BindBtn.BackgroundColor3 = UDim2.new(1, -5, 0, 32), Color3.fromRGB(55, 55, 65) BindBtn.Text, BindBtn.TextColor3, BindBtn.Font, BindBtn.TextSize = "AIM KEY: ["..Settings.AimbotKey.."]", Color3.new(1,1,1), Enum.Font.GothamBold, 12
 Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 6) AddHoverAnim(BindBtn) BindBtn.MouseButton1Click:Connect(function() Settings.IsBinding = true BindBtn.Text = "... PRESS ANY KEY ..." end)
+
 local HideBtn = Instance.new("TextButton", MiscPage) HideBtn.Size, HideBtn.BackgroundColor3 = UDim2.new(1, -5, 0, 32), Color3.fromRGB(55, 55, 65) HideBtn.Text, HideBtn.TextColor3, HideBtn.Font, HideBtn.TextSize = "HIDE KEY: ["..Settings.HideKey.."]", Color3.new(1,1,1), Enum.Font.GothamBold, 12
 Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 6) AddHoverAnim(HideBtn) HideBtn.MouseButton1Click:Connect(function() Settings.IsBindingHide = true HideBtn.Text = "... PRESS ANY KEY ..." end)
 
 Pages["Combat"].Visible = true
 
--- [[ 7. 主控循環 ]]
+-- [[ 7. RUNSERVICE LOOP & CONTROLS ]]
 local dragging, dragStart, startPos = false, nil, nil
 Header.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true dragStart = i.Position startPos = MainFrame.Position end end)
 UserInputService.InputChanged:Connect(function(i) if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then local d = i.Position - dragStart MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
@@ -880,36 +826,21 @@ local function GetClosestTarget()
 end
 
 RunService:BindToRenderStep("SOLIX_LOCK", 201, function()
-    -- 原始 Camera Aimbot
     if Settings.AimbotEnabled then
         local target = GetClosestTarget()
         if target then
             local targetCF = CFrame.new(Camera.CFrame.Position, target.Position)
             local smoothVal = Settings.AimbotSmoothness / 100
             if smoothVal < 1 then Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothVal) else Camera.CFrame = targetCF end
-            if Settings.AutoFireEnabled and tick() - lastAutoFireTime >= Settings.AutoFireDelay then
-                if mouse1click then mouse1click() end
-                lastAutoFireTime = tick()
-            end
+            if Settings.AutoFireEnabled and tick() - lastAutoFireTime >= Settings.AutoFireDelay then if mouse1click then mouse1click() end lastAutoFireTime = tick() end
         end
     end
-    
-    -- Rage Bot 只負責週期傳送（傳送邏輯放在 RenderStepped 以時間控制），此處不再自動開火
 end)
 
+-- 🌟 補給包自動吸取的時間變數
 local ffaTime = 0
+
 RunService.RenderStepped:Connect(function(dt)
-    -- Rage Bot 週期傳送到最近敵人
-    if Settings.RageBotEnabled then
-        local now = tick()
-        if now - lastRageTeleport >= RAGE_TELEPORT_INTERVAL then
-            lastRageTeleport = now
-            RAGE_TELEPORT_INTERVAL = math.random(25, 40) / 10  -- 2.5~4 秒隨機間隔
-            task.spawn(RageTeleportToNearest)
-        end
-    end
-    
-    -- 以下為原有視覺與移動功能
     Lighting.ClockTime = Settings.NightModeEnabled and 0 or 14
     local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     local chCol = Color3.fromRGB(Settings.CrosshairColorR, Settings.CrosshairColorG, Settings.CrosshairColorB)
@@ -942,9 +873,10 @@ RunService.RenderStepped:Connect(function(dt)
     local char = LocalPlayer.Character local root = GetRoot(char) local hum = char and char:FindFirstChild("Humanoid")
     if not root or not hum then return end
 
-    -- FFA 補給包自動收集
+    -- 🌟 FFA 補給包自動收集核心偵測邏輯
     ffaTime = ffaTime + dt * 8
     local bounce = math.sin(ffaTime) * 4
+
     for _, obj in workspace:GetChildren() do
         if obj.Name == "_drop" and obj:IsA("BasePart") then
             if (Settings.FFA_AutoAmmo and obj:FindFirstChild("Ammo")) or
@@ -964,23 +896,19 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- Void Mode
     if Settings.VoidModeEnabled then
         root.Velocity = Vector3.zero local currentY = root.Position.Y
         if voidDirection == 1 then if currentY < 1000 then root.CFrame = root.CFrame * CFrame.new(0, 200, 0) else voidDirection = -1 end
         else if currentY > 0 then root.CFrame = root.CFrame * CFrame.new(0, -200, 0) else voidDirection = 1 end end
     end
 
-    -- Stick To Head
     if Settings.StickToHeadEnabled and not Settings.VoidModeEnabled then
         local tp = GetNearestPlayer(150) if tp and tp.Character and tp.Character:FindFirstChild("Head") then root.CFrame = tp.Character.Head.CFrame * CFrame.new(0, 3.2, 0) root.Velocity = Vector3.zero end
     end
 
-    -- WalkSpeed & JumpPower
     if Settings.WalkSpeedEnabled and not Settings.VoidModeEnabled then hum.WalkSpeed = Settings.WalkSpeedValue end
     if Settings.JumpPowerEnabled and not Settings.VoidModeEnabled then hum.UseJumpPower = true hum.JumpPower = Settings.JumpPowerValue end
 
-    -- Fly
     if Settings.FlyEnabled and not Settings.StickToHeadEnabled and not Settings.VoidModeEnabled then
         hum:ChangeState(11) root.Velocity = Vector3.zero task.wait() local dir = Vector3.zero
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
@@ -1002,4 +930,74 @@ RunService.Stepped:Connect(function()
     end 
 end)
 
-print("✅ GOOD HUB v2: Rage Bot 已改為只傳送到最近敵人 + 安全位置檢測，無自動射擊")
+-- ================== RAGE BOT 核心邏輯 (新增) ==================
+local rageBotRunning = false
+local rageBotTask = nil
+
+local function getClosestPlayerForRage()
+    local closest, bestDist = nil, math.huge
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local char = p.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local rootPart = char.HumanoidRootPart
+                local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
+                if dist < bestDist then
+                    bestDist = dist
+                    closest = p
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function rageBotLoop()
+    while rageBotRunning and Settings.RageBotEnabled do
+        local playerChar = LocalPlayer.Character
+        local root = playerChar and playerChar:FindFirstChild("HumanoidRootPart")
+        if not root then
+            task.wait(0.5)
+            continue
+        end
+        
+        -- 1. 上升到虛空高度
+        root.CFrame = CFrame.new(0, Settings.RageVoidHeight, 0)
+        task.wait(Settings.RageVoidTime)
+        
+        -- 2. 尋找最近敵人
+        local target = getClosestPlayerForRage()
+        if target and target.Character then
+            local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                local randX = math.random(-Settings.RageAttackDistance, Settings.RageAttackDistance)
+                local randZ = math.random(-Settings.RageAttackDistance, Settings.RageAttackDistance)
+                local attackPos = targetRoot.Position + Vector3.new(randX, 5, randZ)
+                root.CFrame = CFrame.new(attackPos)
+                task.wait(Settings.RageAttackTime)
+            end
+        end
+        
+        task.wait(0.1)
+    end
+end
+
+function ToggleRageBot(state)
+    Settings.RageBotEnabled = state
+    SaveSettings()
+    if state then
+        if not rageBotRunning then
+            rageBotRunning = true
+            task.spawn(rageBotLoop)
+        end
+    else
+        rageBotRunning = false
+        if rageBotTask then
+            task.cancel(rageBotTask)
+            rageBotTask = nil
+        end
+    end
+end
+-- ===========================================================
+
+print("💎 GOOD HUB v6: RAGE BOT & FFA BOOSTERS TAB INTEGRATED SUCCESSFULLY!")
